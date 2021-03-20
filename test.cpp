@@ -58,7 +58,7 @@ public:
         offset += block_size;
 
     #if DEBUG == 1
-        std::cout << "LinearAllocator:" << "\t@C " << (void*) currentAddress << "\t@N " << (void*) nextAddress << "\tO " << offset << "\tP " << padding << endl;
+        cout << "LinearAllocator:" << "\t@C " << (void*) currentAddress << "\t@N " << (void*) nextAddress << "\tO " << offset << "\tP " << padding << endl;
     #endif
 
         return (void*)nextAddress;
@@ -110,7 +110,7 @@ public:
         *block_header_ptr = Block_header();
         block_header_ptr->block_size = block_size + padding;
     #if DEBUG == 1
-        std::cout << "StackAllocator:" << "\t@C " << (void*) currentAddress << "\t@N " << (void*) nextAddress << "\t@H " << block_header_ptr << "\tO " << offset << "\tP " << padding << endl;
+        cout << "StackAllocator:" << "\t@C " << (void*) currentAddress << "\t@N " << (void*) nextAddress << "\t@H " << block_header_ptr << "\tO " << offset << "\tP " << padding << endl;
     #endif
 
         return (void*)nextAddress;
