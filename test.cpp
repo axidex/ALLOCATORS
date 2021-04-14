@@ -118,8 +118,11 @@ public:
 
     void pop() //deallocate
     {
-        Block_header *block_header = (Block_header*)((unsigned char*)m_start_ptr + offset - sizeof(Block_header));
-        offset -= block_header->block_size + sizeof(Block_header);
+        if (offset > 0)
+        {
+            Block_header *block_header = (Block_header*)((unsigned char*)m_start_ptr + offset - sizeof(Block_header));
+            offset -= block_header->block_size + sizeof(Block_header);
+        }
     }
 };
 
