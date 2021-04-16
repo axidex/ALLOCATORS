@@ -39,9 +39,10 @@ public:
 
     virtual void *alloc(const size_t block_size, const size_t alignment = 0) override 
     {
+        if (block_size ==  0) return nullptr;
+
         size_t padding = 0;
         size_t currentAddress = size_t(m_start_ptr) + offset;
-
         if (alignment != 0 && offset % alignment != 0) 
         {
             padding = CalculatePadding(currentAddress, alignment);
@@ -127,21 +128,20 @@ public:
 };
 
 int main() {
-    StackAllocator<> buff(5000);
-    auto* p1 = (string*)buff.alloc(sizeof(string), sizeof(string));
+    StackAllocator<> qwe(100);
+    auto* p1 = (string*)qwe.alloc(sizeof(string), sizeof(string));
     *p1 = "10";
-    auto* p2 = (double*)buff.alloc(sizeof(double), sizeof(double));
+    auto* p2 = (double*)qwe.alloc(sizeof(double), sizeof(double));
     *p2 = 3.14;
-    auto* p3 = (int*)buff.alloc(sizeof(int), sizeof(int));
+    auto* p3 = (int*)qwe.alloc(sizeof(int), sizeof(int));
     *p3 = 20;
-
-    buff.pop();
-    buff.pop();
-
-    auto* p4 = (int*)buff.alloc(sizeof(int), sizeof(int));
+    qwe.pop();
+    qwe.pop();
+    auto* p4 = (char*)qwe.alloc(sizeof(char), sizeof(char));
     *p4 = 4;
-    auto* p5 = (double*)buff.alloc(sizeof(double), sizeof(double));
+    auto* p5 = (double*)qwe.alloc(sizeof(double), sizeof(double));
     *p5 = 20.2;
+    qwe.reset();
     
     return 0;
 }
