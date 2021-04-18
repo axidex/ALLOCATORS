@@ -15,6 +15,7 @@ static void SetUp()
 }
 
 BENCHMARK(RandomAllocateAndFree_LinearAllocator)->DenseRange(0, s_NumOfRandAllocations, 10000)->Unit(benchmark::kMillisecond);
+BENCHMARK(RandomAllocateAndFree_StackAllocator)->DenseRange(0, s_NumOfRandAllocations, 10000)->Unit(benchmark::kMillisecond);
 
 int main(int argc, char** argv)
 {
