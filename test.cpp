@@ -128,7 +128,7 @@ public:
 };
 
 int main() {
-    StackAllocator<> qwe(100);
+    StackAllocator<> qwe(40);
     auto* p1 = (string*)qwe.alloc(sizeof(string), sizeof(string));
     *p1 = "10";
     auto* p2 = (double*)qwe.alloc(sizeof(double), sizeof(double));
