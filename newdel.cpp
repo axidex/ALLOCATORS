@@ -7,7 +7,7 @@
 
 using namespace std;
 
-#define DEBUG 1 
+#define DEBUG 1
 /*
 size_t CalculatePadding(const size_t baseAddress, const size_t alignment) //отступ расчет
 {
@@ -21,11 +21,12 @@ class Allocator
 {
 protected:
     size_t total_size;
+
 public:
     Allocator(const size_t block_size) : total_size(block_size) {};
     virtual ~Allocator() {}; //free
 
-    virtual void* alloc(const size_t block_size, const size_t alignment = 0) = 0;   // allocate
+    virtual void* alloc(const size_t block_size, const size_t alignment = 0) = 0; // allocate
     virtual void reset() {};
     virtual void deallocate(void* ptr) {};
 };
@@ -33,36 +34,45 @@ public:
 class LinearAllocator : public Allocator
 {
 protected:
-    size_t offset;  // заполненость
+    size_t offset; // заполненость
     void* m_start_ptr;
+
 public:
-LinearAllocator(const size_t block_size) : Allocator(block_size)
-{
-    offset = 0;
-    m_start_ptr = ::operator new(block_size);
-    cout << "L OK1\n";
-}
-~LinearAllocator() override
-{
-    if (m_start_ptr != nullptr)
+    LinearAllocator(const size_t block_size) : Allocator(block_size)
     {
-        ::operator delete(m_start_ptr);
-        m_start_ptr = nullptr;
-        cout << "L OK2\n";
+        offset = 0;
+        m_start_ptr = ::operator new(block_size);
+        cout << "L OK1\n";
     }
-}
+    ~LinearAllocator() override
+    {
+        if (m_start_ptr != nullptr)
+        {
+            ::operator delete(m_start_ptr);
+            m_start_ptr = nullptr;
+            cout << "L OK2\n";
+        }
+    }
     void* alloc(const size_t block_size, const size_t alignment = 0) override
     {
-        void* currentAddress = reinterpret_cast<char*>(m_start_ptr) + offset; // расчет текуще
-        size_t space = total_size - offset; 
-        align(alignment, block_size, currentAddress, space); //выравнивание
-        if ((size_t)currentAddress + block_size > (size_t)m_start_ptr + total_size) // проверка можно ли выделять память
-            return nullptr;
-        offset = total_size - space + block_size;
-        #if DEBUG == 1
-            cout << "LinearAllocator:" << "\t@C " << (void*) currentAddress << "\t@N " <<  "\tO " << offset << "\tS " << space - offset << endl;
-        #endif
-        return currentAddress;
+
+        if (total_size >= offset + block_size)
+        {
+            void* currentAddress = reinterpret_cast<char*>(m_start_ptr) + offset; // расчет текуще
+
+            size_t space = total_size - offset;
+            align(alignment, block_size, currentAddress, space);                        //выравнивание
+            if ((size_t)currentAddress + block_size > (size_t)m_start_ptr + total_size) // проверка можно ли выделять память
+                return nullptr;
+            offset = total_size - space + block_size;
+
+#if DEBUG == 1
+            cout << "LinearAllocator:"
+                << "\t@C " << (void*)currentAddress << "\t@N "
+                << "\tO " << offset << "\tS " << space - offset << endl;
+#endif
+            return currentAddress;
+        }
     }
     void reset() override
     {
@@ -76,6 +86,7 @@ protected:
     size_t offset;
     using Header = unsigned char;
     void* m_start_ptr;
+
 public:
     StackAllocator(const std::size_t size) : Allocator(size), offset(0)
     {
@@ -84,7 +95,7 @@ public:
     }
     ~StackAllocator() override
     {
-        if (m_start_ptr!=nullptr)
+        if (m_start_ptr != nullptr)
         {
             ::operator delete(m_start_ptr);
             m_start_ptr = nullptr;
@@ -95,18 +106,23 @@ public:
     {
         void* currentAddress = reinterpret_cast<char*>(m_start_ptr) + offset;
         void* nextAddress = reinterpret_cast<void*>(reinterpret_cast<char*>(currentAddress) + sizeof(Header));
-        size_t space = total_size - offset - sizeof(Header);
-        align(alignment, size, nextAddress, space);
-        if ((size_t)nextAddress + size > (size_t)m_start_ptr + total_size)
-            return nullptr;
-        size_t padding = (size_t)nextAddress - (size_t)currentAddress;
         Header* header = reinterpret_cast<Header*>(reinterpret_cast<char*>(nextAddress) - sizeof(Header));
-        *header = (Header)padding;
-        offset = (size_t)nextAddress - (size_t)m_start_ptr + size;
-        #if DEBUG == 1
-        cout << "StackAllocator:" << "\t@C " << (void*) currentAddress << "\t@N " << (void*) nextAddress << "\t@O " << offset <<"\t@S " << space - offset << "\t@P " << padding << endl;
-        #endif
-        return nextAddress;
+        if (total_size >= offset + size + (size_t)header)
+        {
+            size_t space = total_size - offset - sizeof(Header);
+            align(alignment, size, nextAddress, space);
+            if ((size_t)nextAddress + size > (size_t)m_start_ptr + total_size)
+                return nullptr;
+            size_t padding = (size_t)nextAddress - (size_t)currentAddress;
+            
+            *header = (Header)padding;
+            offset = (size_t)nextAddress - (size_t)m_start_ptr + size;
+#if DEBUG == 1
+            cout << "StackAllocator:"
+                << "\t@C " << (void*)currentAddress << "\t@N " << (void*)nextAddress << "\t@O " << offset << "\t@S " << space - offset << "\t@P " << padding << endl;
+#endif
+            return nextAddress;
+        }
     }
     void deallocate(void* ptr) override
     {
@@ -119,7 +135,10 @@ public:
                 offset = currentAddress - (size_t)m_start_ptr - *header;
             }
         }
-        else{cout<<"offset < 0"<<endl;}
+        else
+        {
+            cout << "offset < 0" << endl;
+        }
     }
     void reset() override
     {
@@ -127,19 +146,11 @@ public:
     }
 };
 
-
-
-void posix_death_signal(int signum)
-{
-    
-    cout << "SEG FAULT" << endl;
-    signal(signum, SIG_DFL);
-    exit(3);
-}
 int main()
 {
-    signal(SIGSEGV, posix_death_signal);
-    LinearAllocator abc(1);
-    auto* s1 = (int*)abc.alloc(sizeof(int), sizeof(int));
+
+    StackAllocator abc(5);
+    auto* s1 = (int*)abc.alloc(10);
     *s1 = 10;
+    
 }
