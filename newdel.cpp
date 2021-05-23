@@ -17,6 +17,11 @@ size_t CalculatePadding(const size_t baseAddress, const size_t alignment) //от
     return padding;
 }
 */
+class MyException : public exception
+{
+public:
+    MyException(const char* msg) :exception(msg){}
+};
 class Allocator
 {
 protected:
@@ -56,23 +61,22 @@ public:
     void* alloc(const size_t block_size, const size_t alignment = 0) override
     {
 
-        if (total_size >= offset + block_size)
-        {
-            void* currentAddress = reinterpret_cast<char*>(m_start_ptr) + offset; // расчет текуще
 
-            size_t space = total_size - offset;
-            align(alignment, block_size, currentAddress, space);                        //выравнивание
-            if ((size_t)currentAddress + block_size > (size_t)m_start_ptr + total_size) // проверка можно ли выделять память
-                return nullptr;
-            offset = total_size - space + block_size;
+        void* currentAddress = reinterpret_cast<char*>(m_start_ptr) + offset; // расчет текуще
+
+        size_t space = total_size - offset;
+        align(alignment, block_size, currentAddress, space);                        //выравнивание
+        if ((size_t)currentAddress + block_size > (size_t)m_start_ptr + total_size) // проверка можно ли выделять память
+        {
+            throw MyException("Last allocation was unsuccessfull");
+            return nullptr;
+        }
+        offset = total_size - space + block_size;
 
 #if DEBUG == 1
-            cout << "LinearAllocator:"
-                << "\t@C " << (void*)currentAddress << "\t@N "
-                << "\tO " << offset << "\tS " << space - offset << endl;
+        cout << "LinearAllocator:"<< "\t@C " << (void*)currentAddress << "\t@N "<< "\tO " << offset << "\tS " << space - offset << endl;
 #endif
-            return currentAddress;
-        }
+        return currentAddress;
     }
     void reset() override
     {
@@ -107,22 +111,25 @@ public:
         void* currentAddress = reinterpret_cast<char*>(m_start_ptr) + offset;
         void* nextAddress = reinterpret_cast<void*>(reinterpret_cast<char*>(currentAddress) + sizeof(Header));
         Header* header = reinterpret_cast<Header*>(reinterpret_cast<char*>(nextAddress) - sizeof(Header));
-        if (total_size >= offset + size + (size_t)header)
+
+        size_t space = total_size - offset - sizeof(Header);
+        cout << space << endl;
+        if ((size_t)nextAddress + size > (size_t)m_start_ptr + total_size)
         {
-            size_t space = total_size - offset - sizeof(Header);
-            align(alignment, size, nextAddress, space);
-            if ((size_t)nextAddress + size > (size_t)m_start_ptr + total_size)
-                return nullptr;
-            size_t padding = (size_t)nextAddress - (size_t)currentAddress;
-            
-            *header = (Header)padding;
-            offset = (size_t)nextAddress - (size_t)m_start_ptr + size;
-#if DEBUG == 1
-            cout << "StackAllocator:"
-                << "\t@C " << (void*)currentAddress << "\t@N " << (void*)nextAddress << "\t@O " << offset << "\t@S " << space - offset << "\t@P " << padding << endl;
-#endif
-            return nextAddress;
+            throw MyException("Last allocation was unsuccessfull");
+            return nullptr;
         }
+        align(alignment, size, nextAddress, space);
+        size_t padding = (size_t)nextAddress - (size_t)currentAddress;
+
+        *header = (Header)padding;
+        offset = (size_t)nextAddress - (size_t)m_start_ptr + size;
+#if DEBUG == 1
+        cout << "StackAllocator:"
+            << "\t@C " << (void*)currentAddress << "\t@N " << (void*)nextAddress << "\t@O " << offset << "\t@S " << space - offset << "\t@P " << padding << endl;
+#endif
+
+        return nextAddress;
     }
     void deallocate(void* ptr) override
     {
@@ -149,8 +156,16 @@ public:
 int main()
 {
 
-    StackAllocator abc(5);
-    auto* s1 = (int*)abc.alloc(10);
-    *s1 = 10;
-    
+    //StackAllocator abc(9);
+    //int* s1 = (int*)abc.alloc(10);
+    try
+    {
+        StackAllocator abc(9);
+        int* s1 = (int*)abc.alloc(10);
+    }
+    catch (MyException& ex)
+    {
+        cout << "Warning: " << ex.what() << endl;
+    }
+    //*s1 = 10;
 }
