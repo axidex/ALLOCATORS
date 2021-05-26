@@ -20,7 +20,7 @@ size_t CalculatePadding(const size_t baseAddress, const size_t alignment) //от
 class MyException : public exception
 {
 public:
-    MyException(const char* msg) :exception(msg){}
+    MyException(const char *msg) : exception(msg) {}
 };
 class Allocator
 {
@@ -28,26 +28,33 @@ protected:
     size_t total_size;
 
 public:
-    Allocator(const size_t block_size) : total_size(block_size) {};
-    virtual ~Allocator() {}; //free
+    Allocator(const size_t block_size) : total_size(block_size){};
+    virtual ~Allocator(){}; //free
 
-    virtual void* alloc(const size_t block_size, const size_t alignment = 0) = 0; // allocate
-    virtual void reset() {};
-    virtual void deallocate(void* ptr) {};
+    virtual void *alloc(const size_t block_size, const size_t alignment = 0) = 0; // allocate
+    virtual void reset(){};
+    virtual void deallocate(void *ptr){};
 };
 
 class LinearAllocator : public Allocator
 {
 protected:
     size_t offset; // заполненость
-    void* m_start_ptr;
+    void *m_start_ptr;
 
 public:
     LinearAllocator(const size_t block_size) : Allocator(block_size)
     {
-        offset = 0;
-        m_start_ptr = ::operator new(block_size);
-        cout << "L OK1\n";
+        if (block_size != 0)
+        {
+            offset = 0;
+            m_start_ptr = ::operator new(block_size);
+            cout << "L OK1\n";
+        }
+        else 
+        {
+            throw MyException("Size = 0");
+        }
     }
     ~LinearAllocator() override
     {
@@ -57,12 +64,12 @@ public:
             m_start_ptr = nullptr;
             cout << "L OK2\n";
         }
+        
     }
-    void* alloc(const size_t block_size, const size_t alignment = 0) override
+    void *alloc(const size_t block_size, const size_t alignment = 0) override
     {
 
-
-        void* currentAddress = reinterpret_cast<char*>(m_start_ptr) + offset; // расчет текуще
+        void *currentAddress = reinterpret_cast<char *>(m_start_ptr) + offset; // расчет текуще
 
         size_t space = total_size - offset;
         align(alignment, block_size, currentAddress, space);                        //выравнивание
@@ -74,7 +81,9 @@ public:
         offset = total_size - space + block_size;
 
 #if DEBUG == 1
-        cout << "LinearAllocator:"<< "\t@C " << (void*)currentAddress << "\t@N "<< "\tO " << offset << "\tS " << space - offset << endl;
+        cout << "LinearAllocator:"
+             << "\t@C " << (void *)currentAddress << "\t@N "
+             << "\tO " << offset << "\tS " << space - offset << endl;
 #endif
         return currentAddress;
     }
@@ -89,13 +98,20 @@ class StackAllocator : public Allocator
 protected:
     size_t offset;
     using Header = unsigned char;
-    void* m_start_ptr;
+    void *m_start_ptr;
 
 public:
     StackAllocator(const std::size_t size) : Allocator(size), offset(0)
     {
-        m_start_ptr = ::operator new(size);
-        cout << "S OK1\n";
+        if (size != 0)
+        {
+            m_start_ptr = ::operator new(size);
+            cout << "S OK1\n";
+        }
+        else 
+        {
+            throw MyException("Size = 0");
+        }
     }
     ~StackAllocator() override
     {
@@ -106,18 +122,18 @@ public:
             cout << "S OK2\n";
         }
     }
-    void* alloc(const size_t size, const size_t alignment = 0) override
+    void *alloc(const size_t size, const size_t alignment = 0) override
     {
-        void* currentAddress = reinterpret_cast<char*>(m_start_ptr) + offset;
-        void* nextAddress = reinterpret_cast<void*>(reinterpret_cast<char*>(currentAddress) + sizeof(Header));
-        Header* header = reinterpret_cast<Header*>(reinterpret_cast<char*>(nextAddress) - sizeof(Header));
+        void *currentAddress = reinterpret_cast<char *>(m_start_ptr) + offset;
+        void *nextAddress = reinterpret_cast<void *>(reinterpret_cast<char *>(currentAddress) + sizeof(Header));
+        Header *header = reinterpret_cast<Header *>(reinterpret_cast<char *>(nextAddress) - sizeof(Header));
 
         size_t space = total_size - offset - sizeof(Header);
         cout << space << endl;
         if ((size_t)nextAddress + size > (size_t)m_start_ptr + total_size)
         {
+            cout << "AAAAAAAAAAAAA" << endl;
             throw MyException("Last allocation was unsuccessfull");
-            return nullptr;
         }
         align(alignment, size, nextAddress, space);
         size_t padding = (size_t)nextAddress - (size_t)currentAddress;
@@ -126,17 +142,17 @@ public:
         offset = (size_t)nextAddress - (size_t)m_start_ptr + size;
 #if DEBUG == 1
         cout << "StackAllocator:"
-            << "\t@C " << (void*)currentAddress << "\t@N " << (void*)nextAddress << "\t@O " << offset << "\t@S " << space - offset << "\t@P " << padding << endl;
+             << "\t@C " << (void *)currentAddress << "\t@N " << (void *)nextAddress << "\t@O " << offset << "\t@S " << space - offset << "\t@P " << padding << endl;
 #endif
 
         return nextAddress;
     }
-    void deallocate(void* ptr) override
+    void deallocate(void *ptr) override
     {
         if (offset > 0)
         {
             const size_t currentAddress = (size_t)ptr;
-            Header* header = reinterpret_cast<Header*>(currentAddress - sizeof(Header));
+            Header *header = reinterpret_cast<Header *>(currentAddress - sizeof(Header));
             if (currentAddress - (size_t)m_start_ptr - *header > 0)
             {
                 offset = currentAddress - (size_t)m_start_ptr - *header;
@@ -155,17 +171,14 @@ public:
 
 int main()
 {
-
-    //StackAllocator abc(9);
-    //int* s1 = (int*)abc.alloc(10);
     try
     {
-        StackAllocator abc(9);
-        int* s1 = (int*)abc.alloc(10);
+        StackAllocator abc(0);
+        int *s1 = (int *)abc.alloc(10);
+        *s1 = 5;
     }
-    catch (MyException& ex)
+    catch (MyException &ex)
     {
         cout << "Warning: " << ex.what() << endl;
     }
-    //*s1 = 10;
 }
