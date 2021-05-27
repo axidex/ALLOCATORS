@@ -76,7 +76,6 @@ public:
         if ((size_t)currentAddress + block_size > (size_t)m_start_ptr + total_size) // проверка можно ли выделять память
         {
             throw MyException("Last allocation was unsuccessfull");
-            return nullptr;
         }
         offset = total_size - space + block_size;
 
@@ -132,7 +131,6 @@ public:
         cout << space << endl;
         if ((size_t)nextAddress + size > (size_t)m_start_ptr + total_size)
         {
-            cout << "AAAAAAAAAAAAA" << endl;
             throw MyException("Last allocation was unsuccessfull");
         }
         align(alignment, size, nextAddress, space);
